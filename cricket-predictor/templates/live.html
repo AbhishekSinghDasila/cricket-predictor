@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CricAI – Live Match Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body class="live-mode">
+
+  <!-- ── NAVBAR ──────────────────────────────────────────────────── -->
+  <nav class="navbar">
+    <div class="nav-logo">
+      <span class="logo-icon">🏏</span>
+      <span class="logo-text">CRIC<span class="logo-accent">AI</span></span>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Manual Predict</a>
+      <a href="/live" class="nav-link active">Live Mode</a>
+    </div>
+  </nav>
+
+  <!-- ── LIVE SETUP PANEL ────────────────────────────────────────── -->
+  <section class="live-setup-section" id="setupSection">
+    <div class="live-hero">
+      <div class="live-pulse-ring"></div>
+      <h1 class="hero-title">Live<br /><span class="hero-accent">Simulation</span></h1>
+      <p class="hero-sub">Configure your match, set a target, and watch win probabilities shift ball by ball in real time.</p>
+    </div>
+
+    <div class="setup-card glass-card">
+      <div class="card-header">
+        <span class="card-icon">🔴</span>
+        <h2>Match Setup</h2>
+        <p>Configure teams and 1st innings target</p>
+      </div>
+
+      <form id="setupForm">
+        <div class="field-group">
+          <label class="field-label">Match Format</label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn active" data-val="T20" id="lbtnT20">IPL T20</button>
+            <button type="button" class="toggle-btn" data-val="ODI" id="lbtnODI">ODI</button>
+          </div>
+          <input type="hidden" id="l_match_type" value="T20" />
+        </div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">🏏 Team 1 (Batting 2nd)</label>
+            <select id="l_batting_team" class="field-input">
+              {% for t in ipl_teams %}
+              <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">🎯 Team 2 (Bowling / Set Target)</label>
+            <select id="l_bowling_team" class="field-input">
+              {% for t in ipl_teams %}
+              <option value="{{ t }}" {% if loop.index == 2 %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">🏟️ Venue</label>
+            <select id="l_venue" class="field-input">
+              {% for v in venues %}
+              <option value="{{ v }}">{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">🎯 Target (1st innings score + 1)</label>
+            <input type="number" id="l_target" class="field-input" value="165" min="50" max="400" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">⚡ Simulation Speed</label>
+          <div class="speed-group">
+            <button type="button" class="speed-btn active" data-ms="800" id="sp1">Normal</button>
+            <button type="button" class="speed-btn" data-ms="300" id="sp2">Fast</button>
+            <button type="button" class="speed-btn" data-ms="80" id="sp3">Turbo</button>
+          </div>
+          <input type="hidden" id="sim_speed" value="800" />
+        </div>
+
+        <button type="submit" class="predict-btn live-start-btn" id="startBtn">
+          <span class="btn-icon">🔴</span> Start Live Simulation
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── LIVE MATCH SCREEN ───────────────────────────────────────── -->
+  <section class="live-match-section hidden" id="matchSection">
+
+    <!-- Scoreboard -->
+    <div class="live-scoreboard glass-card">
+      <div class="scoreboard-left">
+        <div class="team-display">
+          <span class="team-label" id="lv_batting_team">—</span>
+          <span class="score-display mono" id="lv_score">0/0</span>
+          <span class="overs-display" id="lv_overs">0.0 ov</span>
+        </div>
+      </div>
+      <div class="scoreboard-mid">
+        <div class="target-display">Target: <span class="mono" id="lv_target">—</span></div>
+        <div class="needed-display">Need <span id="lv_needed">—</span> off <span id="lv_balls">—</span> balls</div>
+        <div class="match-status-tag" id="matchStatusTag">LIVE</div>
+      </div>
+      <div class="scoreboard-right">
+        <div class="crr-rrr">
+          <div><span class="rate-label">CRR</span> <span class="rate-val mono" id="lv_crr">0.00</span></div>
+          <div><span class="rate-label">RRR</span> <span class="rate-val mono" id="lv_rrr">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Probability meters -->
+    <div class="live-probs glass-card">
+      <div class="live-team-prob">
+        <div class="ltp-name" id="lv_bat_name">Team A</div>
+        <div class="ltp-bar-wrap">
+          <div class="ltp-bar ltp-bat" id="ltp_bat" style="width:50%">
+            <span class="ltp-label" id="ltp_bat_label">50%</span>
+          </div>
+          <div class="ltp-bar ltp-bowl" id="ltp_bowl" style="width:50%">
+            <span class="ltp-label" id="ltp_bowl_label">50%</span>
+          </div>
+        </div>
+        <div class="ltp-name" id="lv_bowl_name">Team B</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card glass-card">
+      <div class="chart-header">
+        <h3>Win Probability Over Time</h3>
+        <div class="chart-legend">
+          <span class="legend-dot bat-dot"></span><span id="legend_bat">Batting Team</span>
+          <span class="legend-dot bowl-dot"></span><span id="legend_bowl">Bowling Team</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="probChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Ball-by-ball log -->
+    <div class="ball-log-card glass-card">
+      <h3>Ball-by-Ball Log</h3>
+      <div class="ball-log" id="ballLog"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="live-controls">
+      <button class="ctrl-btn pause-btn" id="pauseBtn">⏸ Pause</button>
+      <button class="ctrl-btn reset-btn" id="resetBtn">🔄 New Match</button>
+    </div>
+
+  </section>
+
+  <footer class="footer">
+    <p>🏏 CricAI &mdash; Built with Flask + Scikit-Learn &mdash; Deployed on Render</p>
+  </footer>
+
+  <script>
+    const IPL_TEAMS = {{ ipl_teams | tojson }};
+    const ODI_TEAMS = {{ odi_teams | tojson }};
+    const VENUES    = {{ venues | tojson }};
+  </script>
+  <script src="/static/js/live.js"></script>
+</body>
+</html>
