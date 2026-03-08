@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CricAI – Cricket Win Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- ── NAVBAR ──────────────────────────────────────────────────── -->
+  <nav class="navbar">
+    <div class="nav-logo">
+      <span class="logo-icon">🏏</span>
+      <span class="logo-text">CRIC<span class="logo-accent">AI</span></span>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link active">Manual Predict</a>
+      <a href="/live" class="nav-link">Live Mode</a>
+    </div>
+  </nav>
+
+  <!-- ── HERO ────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-bg-text">CRICKET</div>
+    <div class="hero-content">
+      <h1 class="hero-title">Win Probability<br /><span class="hero-accent">Predictor</span></h1>
+      <p class="hero-sub">Enter the current match state and our ML model will calculate each team's probability of winning — updated ball by ball.</p>
+    </div>
+    <div class="hero-badges">
+      <span class="badge badge-t20">IPL T20</span>
+      <span class="badge badge-odi">ODI</span>
+      <span class="badge badge-ml">ML Powered</span>
+    </div>
+  </section>
+
+  <!-- ── MAIN LAYOUT ─────────────────────────────────────────────── -->
+  <main class="main-container">
+
+    <!-- ── INPUT FORM ─────────────────────────────────────────────── -->
+    <div class="form-card glass-card">
+      <div class="card-header">
+        <span class="card-icon">⚙️</span>
+        <h2>Match State</h2>
+        <p>Fill in the current match situation</p>
+      </div>
+
+      <form id="predictForm">
+
+        <!-- Match type toggle -->
+        <div class="field-group">
+          <label class="field-label">Match Format</label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn active" data-val="T20" id="btnT20">IPL T20</button>
+            <button type="button" class="toggle-btn" data-val="ODI" id="btnODI">ODI</button>
+          </div>
+          <input type="hidden" id="match_type" value="T20" />
+        </div>
+
+        <!-- Teams row -->
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label" for="batting_team">🏏 Batting Team</label>
+            <select id="batting_team" class="field-input">
+              {% for t in ipl_teams %}
+              <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="bowling_team">🎯 Bowling Team</label>
+            <select id="bowling_team" class="field-input">
+              {% for t in ipl_teams %}
+              <option value="{{ t }}" {% if loop.index == 2 %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Venue -->
+        <div class="field-group">
+          <label class="field-label" for="venue">🏟️ Venue</label>
+          <select id="venue" class="field-input">
+            {% for v in venues %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Score row -->
+        <div class="row-3">
+          <div class="field-group">
+            <label class="field-label" for="target">🎯 Target</label>
+            <input type="number" id="target" class="field-input" value="165" min="50" max="400" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="current_score">📊 Score</label>
+            <input type="number" id="current_score" class="field-input" value="78" min="0" max="400" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="wickets">💀 Wickets</label>
+            <input type="number" id="wickets" class="field-input" value="3" min="0" max="9" />
+          </div>
+        </div>
+
+        <!-- Overs / balls -->
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label" for="overs_done">⏱️ Overs Done</label>
+            <input type="number" id="overs_done" class="field-input" step="0.1" value="10.0" min="0" max="50" />
+            <span class="field-hint">e.g. 10.3 = 10 overs 3 balls</span>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="partnership">🤝 Partnership (runs)</label>
+            <input type="number" id="partnership" class="field-input" value="20" min="0" max="200" />
+          </div>
+        </div>
+
+        <!-- Last 5 overs -->
+        <div class="field-group">
+          <label class="field-label" for="last_5_overs_runs">📈 Last 5 Overs Runs</label>
+          <input type="number" id="last_5_overs_runs" class="field-input" value="38" min="0" max="120" />
+        </div>
+
+        <button type="submit" class="predict-btn" id="submitBtn">
+          <span class="btn-icon">⚡</span> Predict Win Probability
+        </button>
+      </form>
+    </div>
+
+    <!-- ── RESULTS PANEL ───────────────────────────────────────────── -->
+    <div class="results-panel">
+
+      <!-- Placeholder -->
+      <div class="result-placeholder" id="placeholder">
+        <div class="placeholder-icon">🏏</div>
+        <h3>Ready to Predict</h3>
+        <p>Fill in the match state and click Predict to see win probabilities.</p>
+      </div>
+
+      <!-- Result card (hidden initially) -->
+      <div class="result-card glass-card hidden" id="resultCard">
+
+        <div class="result-header">
+          <span class="result-format" id="resultFormat">T20</span>
+          <span class="result-venue" id="resultVenue">—</span>
+        </div>
+
+        <!-- Win probability bars -->
+        <div class="prob-section">
+          <div class="team-prob" id="probBatting">
+            <div class="team-name" id="batTeamName">—</div>
+            <div class="prob-bar-wrap">
+              <div class="prob-bar bat-bar" id="batBar" style="width:50%"></div>
+            </div>
+            <div class="prob-value" id="batProb">50%</div>
+          </div>
+
+          <div class="vs-divider">VS</div>
+
+          <div class="team-prob" id="probBowling">
+            <div class="team-name" id="bowlTeamName">—</div>
+            <div class="prob-bar-wrap">
+              <div class="prob-bar bowl-bar" id="bowlBar" style="width:50%"></div>
+            </div>
+            <div class="prob-value" id="bowlProb">50%</div>
+          </div>
+        </div>
+
+        <!-- Match stats grid -->
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Score</div>
+            <div class="stat-value mono" id="statScore">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Runs Needed</div>
+            <div class="stat-value mono" id="statNeeded">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Balls Left</div>
+            <div class="stat-value mono" id="statBalls">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">CRR</div>
+            <div class="stat-value mono" id="statCRR">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">RRR</div>
+            <div class="stat-value mono" id="statRRR">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Momentum</div>
+            <div class="stat-value mono" id="statMomentum">—</div>
+          </div>
+        </div>
+
+        <!-- Verdict bar -->
+        <div class="verdict" id="verdict">
+          <span class="verdict-label">Predicted Winner:</span>
+          <span class="verdict-team" id="verdictTeam">—</span>
+        </div>
+
+      </div><!-- /result-card -->
+
+    </div><!-- /results-panel -->
+
+  </main><!-- /main-container -->
+
+  <!-- ── HOW IT WORKS SECTION ────────────────────────────────────── -->
+  <section class="how-it-works">
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps-grid">
+      <div class="step-card glass-card">
+        <div class="step-num">01</div>
+        <h3>Data</h3>
+        <p>Trained on 15,000+ realistic match scenarios covering IPL and ODI formats with ball-by-ball statistics.</p>
+      </div>
+      <div class="step-card glass-card">
+        <div class="step-num">02</div>
+        <h3>Features</h3>
+        <p>Model uses Run Rate, Required Rate, wickets in hand, partnership, pressure index and more to assess match state.</p>
+      </div>
+      <div class="step-card glass-card">
+        <div class="step-num">03</div>
+        <h3>Model</h3>
+        <p>Gradient Boosting Classifier trained to output precise win probabilities that shift as the match evolves.</p>
+      </div>
+      <div class="step-card glass-card">
+        <div class="step-num">04</div>
+        <h3>Predict</h3>
+        <p>Enter any match state manually or watch probabilities change ball-by-ball in Live Simulation Mode.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>🏏 CricAI &mdash; Built with Flask + Scikit-Learn &mdash; Deployed on Render</p>
+  </footer>
+
+  <!-- Hidden data for JS -->
+  <script>
+    const IPL_TEAMS = {{ ipl_teams | tojson }};
+    const ODI_TEAMS = {{ odi_teams | tojson }};
+    const VENUES    = {{ venues | tojson }};
+  </script>
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
